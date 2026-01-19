@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Halloween Vocabulary Quiz</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #020617;
+            margin: 0;
+            overflow: hidden;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* --- ANIMATIONS --- */
+        
+        @keyframes bat-float { 
+            0%, 100% { transform: translateY(0); } 
+            50% { transform: translateY(-10px); } 
+        }
+        
+        /* Le saut : monte et redescend */
+        @keyframes bat-jump {
+            0% { transform: translateY(0) scale(1); }
+            40% { transform: translateY(-130px) scale(1.2) rotate(10deg); } /* Sommet du saut */
+            60% { transform: translateY(-130px) scale(1.2) rotate(-10deg); }
+            100% { transform: translateY(0) scale(1); }
+        }
+        
+        /* Le crash : tourne sur elle-même */
+        @keyframes bat-spin { 
+            0% { transform: rotate(0); } 
+            100% { transform: rotate(1080deg); } 
+        }
+        
+        /* La course de la citrouille : traverse l'écran de droite à gauche */
+        @keyframes pumpkin-run { 
+            0% { right: -15%; transform: rotate(0deg); } 
+            100% { right: 115%; transform: rotate(-720deg); } 
+        }
+        
+        @keyframes trophy-pulse { 
+            0%, 100% { transform: scale(1); filter: drop-shadow(0 0 10px gold); } 
+            50% { transform: scale(1.1); filter: drop-shadow(0 0 25px gold); } 
+        }
+        
+        @keyframes wander {
+            0% { transform: translate(0, 0) rotate(0deg); }
+            25% { transform: translate(10vw, -5vh) rotate(90deg); }
+            50% { transform: translate(-5vw, 10vh) rotate(180deg); }
+            75% { transform: translate(-10vw, -10vh) rotate(270deg); }
+            100% { transform: translate(0, 0) rotate(360deg); }
+        }
+
+        .bat-idle { animation: bat-float 2s ease-in-out infinite; }
+        
+        /* Durée du saut et délai ajustés pour la synchro */
+        .bat-jump { animation: bat-jump 1.0s cubic-bezier(0.4, 0, 0.2, 1) forwards; } 
+        
+        .bat-spin { animation: bat-spin 0.8s ease-out forwards; }
+        
+        /* La citrouille met 1.5s pour traverser */
+        .pumpkin-run { animation: pumpkin-run 1.5s linear forwards; }
+        
+        .trophy-winner { animation: trophy-pulse 2s ease-in-out infinite; }
+        .floating-emoji { position: absolute; animation: wander linear infinite; opacity: 0.4; pointer-events: none; }
+        
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body class="text-white select-none">
+
+    <div id="game-container" class="fixed inset-0 flex flex-col items-center">
+        <!-- Background Effects -->
+        <div id="bg-effects" class="absolute inset-0 overflow-hidden pointer-events-none"></div>
+        <canvas id="victory-canvas" class="absolute inset-0 z-50 pointer-events-none hidden"></canvas>
+
+        <div class="w-full h-full max-w-lg flex flex-col z-20 overflow-hidden relative">
+            
+            <!-- Dynamic Header (Animation Zone) -->
+            <div id="game-header" class="h-[20vh] min-h-[120px] w-full bg-slate-900/30 relative border-b border-white/5 flex-shrink-0 hidden">
+                <div class="absolute bottom-2 w-full h-0.5 bg-slate-800"></div>
+                
+                <!-- Chauve-souris -->
+                <div id="bat-avatar" class="absolute left-6 bottom-2 text-[8vh] z-20 bat-idle">🦇</div>
+                
+                <!-- Citrouille (cachée par défaut) -->
+                <div id="pumpkin-runner" class="absolute bottom-2 text-[6vh] z-10 hidden">🎃</div>
+                
+                <!-- Barre de temps -->
+                <div id="timer-bar" class="absolute bottom-0 left-0 h-1 bg-orange-600 transition-all duration-100" style="width: 100%"></div>
+            </div>
+
+            <!-- Content Area -->
+            <div id="main-content" class="flex-1 flex flex-col p-4 justify-center relative overflow-hidden">
+                
+                <!-- MENU VIEW -->
+                <div id="view-menu" class="h-full flex flex-col items-center justify-center space-y-8">
+                    <div class="text-center">
+                        <h1 class="text-[7vh] font-black text-orange-500 italic drop-shadow-lg leading-tight">HALLOWEEN</h1>
+                        <p class="text-purple-400 font-bold tracking-widest text-sm">ENGLISH VOCABULARY</p>
+                    </div>
+                    <div class="w-full space-y-4">
+                        <button onclick="showView('learn')" class="w-full bg-white text-slate-900 p-6 rounded-[2rem] border-b-8 border-slate-300 active:translate-y-1 active:border-b-0 flex items-center justify-between shadow-xl">
+                            <span class="text-3xl font-black text-purple-600 uppercase">Learn</span>
+                            <span class="text-3xl">📖</span>
+                        </button>
+                        <button onclick="startQuiz()" class="w-full bg-orange-500 text-white p-6 rounded-[2rem] border-b-8 border-orange-700 active:translate-y-1 active:border-b-0 flex items-center justify-between shadow-xl">
+                            <span class="text-3xl font-black uppercase">Play</span>
+                            <span class="text-3xl">▶️</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- LEARN VIEW -->
+                <div id="view-learn" class="h-full flex flex-col hidden">
+                    <div class="flex justify-between items-center mb-4">
+                        <button onclick="showView('menu')" class="p-4 bg-slate-800 rounded-2xl">🏠</button>
+                        <h2 class="text-xl font-black border-b-4 border-orange-500 italic uppercase">Dictionary</h2>
+                        <button onclick="startQuiz()" class="p-4 bg-orange-500 rounded-2xl">▶️</button>
+                    </div>
+                    <!-- Grid sans texte sous les images -->
+                    <div id="learn-grid" class="flex-1 grid grid-cols-2 grid-rows-4 gap-4">
+                        <!-- Rempli par JS -->
+                    </div>
+                </div>
+
+                <!-- PLAY VIEW -->
+                <div id="view-play" class="h-full flex flex-col justify-between hidden">
+                    <div class="flex justify-between items-center">
+                        <button onclick="showView('menu')" class="p-2 bg-slate-800 rounded-lg">🏠</button>
+                        <div id="score-badge" class="bg-orange-500 px-6 py-2 rounded-full font-black shadow-lg">SCORE: 0</div>
+                    </div>
+
+                    <div class="flex-1 flex flex-col items-center justify-center space-y-8">
+                        <button id="audio-trigger" class="w-32 h-32 bg-white text-purple-600 rounded-full flex items-center justify-center shadow-2xl border-8 border-purple-500/20 active:scale-90 transition-all animate-pulse">
+                            <span class="text-6xl">🔊</span>
+                        </button>
+
+                        <div id="options-grid" class="grid grid-cols-2 gap-4 w-full max-w-sm">
+                            <!-- Rempli par JS -->
+                        </div>
+                    </div>
+                    <div id="feedback-text" class="h-8 flex items-center justify-center font-black italic text-xl tracking-widest uppercase"></div>
+                </div>
+
+                <!-- FINISHED VIEW -->
+                <div id="view-finished" class="h-full flex flex-col items-center justify-center hidden z-50">
+                    <div class="bg-slate-900/95 backdrop-blur-xl p-8 rounded-[3rem] text-center w-full border-t-8 border-orange-500 shadow-2xl">
+                        <div id="trophy-container" class="flex flex-col items-center mb-4">
+                            <span id="finish-emoji" class="text-8xl">🏆</span>
+                            <h2 id="finish-title" class="text-3xl font-black text-white mt-4 italic uppercase">Champion!</h2>
+                        </div>
+
+                        <div id="final-score" class="text-8xl font-black text-orange-500 mb-2 leading-none">
+                            12<span class="text-3xl text-slate-700">/12</span>
+                        </div>
+                        
+                        <p id="finish-msg" class="text-slate-400 mb-8 font-bold text-sm"></p>
+
+                        <div class="space-y-4">
+                            <button onclick="startQuiz()" class="w-full bg-orange-500 text-white py-5 rounded-3xl font-black text-2xl border-b-8 border-orange-700 active:translate-y-1 active:border-b-0 shadow-lg flex items-center justify-center gap-3">
+                                🔄 REPLAY
+                            </button>
+                            <button onclick="showView('menu')" class="text-slate-500 font-bold uppercase text-xs hover:text-white transition-colors flex items-center gap-2 mx-auto py-2">
+                                🏠 BACK TO MENU
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Vocabulaire avec "Uh" pour prononcer le "e" français pour "A"
+        const VOCABULARY = [
+            { id: 'witch', word: 'Uh witch', icon: '🧙‍♀️🧹', label: 'Witch' },
+            { id: 'skeleton', word: 'Uh skeleton', icon: '💀', label: 'Skeleton' },
+            { id: 'pumpkin', word: 'Uh pumpkin', icon: '🎃', label: 'Pumpkin' },
+            { id: 'mummy', word: 'Uh mummy', icon: '🤕', label: 'Mummy' },
+            { id: 'monster', word: 'Uh monster', icon: '👾', label: 'Monster' },
+            { id: 'pirate', word: 'Uh pirate', icon: '🏴‍☠️', label: 'Pirate' },
+            { id: 'ghost', word: 'Uh ghost', icon: '👻', label: 'Ghost' },
+            { id: 'vampire', word: 'Uh vampire', icon: '🧛', label: 'Vampire' }
+        ];
+
+        let state = {
+            view: 'menu',
+            questions: [],
+            currentIndex: 0,
+            score: 0,
+            timeLeft: 8,
+            gameStatus: 'playing', 
+            timer: null,
+            utterance: null
+        };
+
+        // --- SYSTEME AUDIO (ROBUSTE POUR NETLIFY/MOBILE) ---
+        function unlockAudio() {
+            // Déclenche un son vide au clic pour réveiller le moteur audio iOS/Android
+            if ('speechSynthesis' in window) {
+                const silence = new SpeechSynthesisUtterance("");
+                silence.volume = 0;
+                window.speechSynthesis.speak(silence);
+            }
+        }
+
+        function playWord(text) {
+            if (!('speechSynthesis' in window)) return;
+            
+            window.speechSynthesis.cancel();
+            const msg = new SpeechSynthesisUtterance(text);
+            
+            // Sélection prioritaire d'une voix anglaise
+            const voices = window.speechSynthesis.getVoices();
+            const enVoice = voices.find(v => v.lang.startsWith('en-US')) || voices.find(v => v.lang.startsWith('en'));
+            if (enVoice) msg.voice = enVoice;
+
+            msg.lang = 'en-US';
+            msg.rate = 0.7; // Un peu plus lent
+            msg.pitch = 0.95;
+            
+            // Stockage dans l'état global pour éviter le Garbage Collection
+            state.utterance = msg;
+            window.speechSynthesis.speak(msg);
+        }
+
+        // --- NAVIGATION ---
+        function showView(viewId) {
+            state.view = viewId;
+            // Masquer toutes les vues
+            ['view-menu', 'view-learn', 'view-play', 'view-finished'].forEach(id => {
+                document.getElementById(id).classList.add('hidden');
+            });
+            // Afficher la vue demandée
+            document.getElementById(`view-${viewId}`).classList.remove('hidden');
+            
+            // Gestion de l'entête
+            const header = document.getElementById('game-header');
+            if (viewId === 'play') header.classList.remove('hidden');
+            else header.classList.add('hidden');
+
+            if (viewId === 'learn') renderLearnGrid();
+            if (viewId === 'finished') renderFinishedView();
+            
+            clearInterval(state.timer);
+        }
+
+        // --- LOGIQUE DU JEU ---
+        function startQuiz() {
+            unlockAudio();
+            const q = [...VOCABULARY].sort(() => 0.5 - Math.random());
+            state.questions = [...q, ...q].slice(0, 12);
+            state.score = 0;
+            state.currentIndex = 0;
+            showView('play');
+            nextQuestion();
+        }
+
+        function nextQuestion() {
+            state.gameStatus = 'playing';
+            state.timeLeft = 8;
+            
+            // Reset UI
+            document.getElementById('feedback-text').innerText = '';
+            document.getElementById('feedback-text').className = '';
+            
+            // Reset Animation Chauve-souris
+            const bat = document.getElementById('bat-avatar');
+            bat.className = 'absolute left-6 bottom-2 text-[8vh] z-20 bat-idle';
+            bat.style.animationDelay = '0s'; // Reset délai
+            
+            // Reset Animation Citrouille
+            const runner = document.getElementById('pumpkin-runner');
+            runner.classList.add('hidden');
+            runner.className = 'absolute bottom-2 text-[6vh] z-10 hidden'; 
+            
+            document.getElementById('score-badge').innerText = `SCORE: ${state.score}`;
+            
+            const correct = state.questions[state.currentIndex];
+            const others = VOCABULARY.filter(v => v.id !== correct.id).sort(() => 0.5 - Math.random()).slice(0, 3);
+            const options = [correct, ...others].sort(() => 0.5 - Math.random());
+
+            renderOptions(options);
+            setTimeout(() => playWord(correct.word), 300);
+            startTimer();
+        }
+
+        function startTimer() {
+            clearInterval(state.timer);
+            const bar = document.getElementById('timer-bar');
+            state.timer = setInterval(() => {
+                state.timeLeft -= 0.1;
+                bar.style.width = `${(state.timeLeft / 8) * 100}%`;
+                if (state.timeLeft <= 0) {
+                    handleAnswer(null); // Timeout = Faux
+                }
+            }, 100);
+        }
+
+        function handleAnswer(selectedId) {
+            if (state.gameStatus !== 'playing') return;
+            state.gameStatus = 'animating';
+            clearInterval(state.timer);
+
+            const correctId = state.questions[state.currentIndex].id;
+            const isCorrect = selectedId === correctId;
+            const feedback = document.getElementById('feedback-text');
+            const bat = document.getElementById('bat-avatar');
+            const runner = document.getElementById('pumpkin-runner');
+
+            // 1. Lancer la citrouille (toujours)
+            runner.classList.remove('hidden');
+            runner.className = "absolute bottom-2 text-[6vh] z-10 pumpkin-run"; // 1.5s duration
+
+            // 2. Gérer la réaction de la chauve-souris
+            // La citrouille arrive sur la chauve-souris (qui est à gauche) vers la fin de son trajet
+            // Trajet de right:-15% à 115%. Bat est à left:6 (right:~90%).
+            // L'impact visuel est vers 1.0s - 1.2s environ.
+            
+            if (isCorrect) {
+                state.score++;
+                feedback.innerText = "GREAT! 🦇✨";
+                feedback.className = "h-8 flex items-center justify-center font-black italic text-xl tracking-widest uppercase text-green-400 animate-bounce";
+                
+                // La chauve-souris saute AVANT l'impact pour éviter
+                // Délai de 0.6s pour que le saut soit synchronisé avec l'arrivée de la citrouille
+                bat.style.animationDelay = '0.6s'; 
+                bat.className = "absolute left-6 bottom-2 text-[8vh] z-20 bat-jump";
+                
+            } else {
+                feedback.innerText = "OOPS! 🎃";
+                feedback.className = "h-8 flex items-center justify-center font-black italic text-xl tracking-widest uppercase text-red-500 animate-pulse";
+                
+                // La chauve-souris tourne AU MOMENT de l'impact
+                // Délai un peu plus long pour qu'elle tourne quand la citrouille la touche
+                bat.style.animationDelay = '1.0s';
+                bat.className = "absolute left-6 bottom-2 text-[8vh] z-20 bat-spin";
+            }
+
+            // Highlight buttons
+            document.querySelectorAll('.opt-btn').forEach(btn => {
+                const id = btn.dataset.id;
+                if (id === correctId) btn.classList.add('border-green-500', 'bg-green-900/30');
+                if (id === selectedId && !isCorrect) btn.classList.add('border-red-500', 'bg-red-900/30');
+            });
+
+            // Attendre la fin de l'animation (1.5s + marge)
+            setTimeout(() => {
+                state.currentIndex++;
+                if (state.currentIndex < 12) {
+                    nextQuestion();
+                } else {
+                    showView('finished');
+                }
+            }, 2000);
+        }
+
+        // --- RENDERING ---
+        function renderOptions(options) {
+            const grid = document.getElementById('options-grid');
+            grid.innerHTML = '';
+            options.forEach(opt => {
+                const btn = document.createElement('button');
+                // Cadre vert ajouté dynamiquement au clic
+                btn.className = "opt-btn bg-slate-900 rounded-[2rem] aspect-square flex items-center justify-center text-[8vh] border-4 border-transparent transition-all shadow-xl active:scale-95";
+                btn.innerHTML = opt.icon;
+                btn.dataset.id = opt.id;
+                btn.onclick = () => handleAnswer(opt.id);
+                grid.appendChild(btn);
+            });
+            // Re-bind audio button
+            const audioBtn = document.getElementById('audio-trigger');
+            audioBtn.onclick = () => {
+                const currentQ = state.questions[state.currentIndex];
+                if (currentQ) playWord(currentQ.word);
+            };
+        }
+
+        function renderLearnGrid() {
+            const grid = document.getElementById('learn-grid');
+            grid.innerHTML = '';
+            VOCABULARY.forEach(item => {
+                const btn = document.createElement('button');
+                btn.className = "bg-slate-900 rounded-3xl flex items-center justify-center border-4 border-slate-800 transition-all active:border-orange-500 active:scale-105";
+                // Pas de texte sous l'image
+                btn.innerHTML = `<span class="text-[7vh]">${item.icon}</span>`;
+                btn.onclick = () => {
+                    unlockAudio();
+                    playWord(item.word);
+                };
+                grid.appendChild(btn);
+            });
+        }
+
+        function renderFinishedView() {
+            const canvas = document.getElementById('victory-canvas');
+            const scoreDisplay = document.getElementById('final-score');
+            const msg = document.getElementById('finish-msg');
+            const emoji = document.getElementById('finish-emoji');
+            const title = document.getElementById('finish-title');
+
+            scoreDisplay.innerHTML = `${state.score}<span class="text-3xl text-slate-700">/12</span>`;
+            
+            if (state.score === 12) {
+                canvas.classList.remove('hidden');
+                initConfetti();
+                emoji.innerText = "🏆";
+                emoji.className = "text-8xl trophy-winner";
+                title.innerText = "CHAMPION!";
+                msg.innerText = "Perfect! You mastered Halloween!";
+            } else {
+                canvas.classList.add('hidden');
+                emoji.innerText = "💀";
+                emoji.className = "text-8xl";
+                title.innerText = "WELL DONE!";
+                msg.innerText = "Great job! Keep practicing!";
+            }
+        }
+
+        // --- BACKGROUND & EFFECTS ---
+        function initMenuBg() {
+            const container = document.getElementById('bg-effects');
+            const emojis = ['🎃', '👻', '🦇', '💀', '🕷️', '🕯️', '🍬'];
+            for(let i=0; i<12; i++) {
+                const div = document.createElement('div');
+                div.className = "floating-emoji";
+                div.innerText = emojis[Math.floor(Math.random() * emojis.length)];
+                div.style.left = `${Math.random() * 90}%`;
+                div.style.top = `${Math.random() * 90}%`;
+                div.style.fontSize = `${Math.random() * 30 + 20}px`;
+                div.style.animationDuration = `${Math.random() * 10 + 10}s`;
+                div.style.animationDelay = `${Math.random() * -20}s`;
+                container.appendChild(div);
+            }
+        }
+
+        function initConfetti() {
+            const canvas = document.getElementById('victory-canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            let particles = [];
+
+            class P {
+                constructor() {
+                    this.x = Math.random() * canvas.width;
+                    this.y = Math.random() * canvas.height;
+                    this.color = ['#FF9800', '#9C27B0', '#FFEB3B', '#FFF', '#4CAF50'][Math.floor(Math.random()*5)];
+                    this.vx = Math.random() * 4 - 2;
+                    this.vy = Math.random() * 4 + 2; // Gravité initiale inversée pour explosion vers le haut? Non, ici c'est pluie ou explosion
+                    
+                    // Explosion style
+                    this.x = Math.random() * canvas.width;
+                    this.y = canvas.height; // Start from bottom
+                    this.vy = -(Math.random() * 10 + 5); // Shoot up
+                    this.vx = Math.random() * 4 - 2;
+                    this.size = Math.random() * 5 + 2;
+                    this.gravity = 0.2;
+                    this.alpha = 1;
+                }
+                draw() {
+                    ctx.globalAlpha = this.alpha;
+                    ctx.fillStyle = this.color;
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.size, 0, Math.PI*2);
+                    ctx.fill();
+                }
+                update() {
+                    this.vy += this.gravity;
+                    this.x += this.vx;
+                    this.y += this.vy;
+                    if (this.y > canvas.height) {
+                        // Reset to launch again
+                        this.y = canvas.height;
+                        this.vy = -(Math.random() * 15 + 8);
+                        this.x = Math.random() * canvas.width;
+                        this.color = ['#FF9800', '#9C27B0', '#FFEB3B', '#FFF'][Math.floor(Math.random()*4)];
+                    }
+                }
+            }
+
+            // Create particles
+            particles = [];
+            for(let i=0; i<80; i++) particles.push(new P());
+
+            function anim() {
+                if (state.view !== 'finished') return;
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                particles.forEach(p => { p.update(); p.draw(); });
+                requestAnimationFrame(anim);
+            }
+            anim();
+        }
+
+        // Init
+        window.onload = () => {
+            initMenuBg();
+            window.speechSynthesis.getVoices();
+            if (speechSynthesis.onvoiceschanged !== undefined) {
+                speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
+            }
+        };
+
+    </script>
+</body>
+</html>
